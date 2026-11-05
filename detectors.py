@@ -1,4 +1,5 @@
-"""Simple statistical fault detectors.
+"""
+Simple statistical fault detectors.
 
 Each detector turns a series of readings into a *score* (bigger = more suspicious).
 An alarm is raised when score > threshold. Keeping score and threshold separate lets
