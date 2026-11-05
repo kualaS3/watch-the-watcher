@@ -74,7 +74,7 @@ The options I actually use: `python evaluate.py --runs 200 --target-fa 1.0 --see
 
 ## Results snapshot (seed 0, 100 runs per cell, 0.5 false alarms/hour budget)
 
-These are my results from one run of the evaluation. The full tables are in `results/summary.md`, and the plots are `results/example_runs.png` and `results/tradeoff.png`. If you run it yourself and get slightly different numbers, trust yours — this is a snapshot, not gospel.
+These are my results from one run of the evaluation. The full tables are in `results/summary.md`, and the plots are `results/example_runs.png` and `results/tradeoff.png`. If you run it yourself and get slightly different numbers, trust yours. This is a snapshot, not gospel.
 
 1. **The routine checks only catch faults that leave the range.** In my simulation they flagged 100% of drifts (about 5.5 h after the drift began, at the 8 h check) and 0% of spikes, offsets and stuck sensors, because those never leave the range. A calibration offset or a frozen sensor can sit inside the range indefinitely, and the routine check will never see it. This was honestly the result that sold me on the whole project.
 2. **Drift: EWMA and CUSUM give hours of warning.** EWMA caught 100% of drifts on every channel, roughly 140 to 175 minutes before the reading left the range and about 300 minutes before the routine check would have flagged it. CUSUM did similarly on pH, temperature and DO. The rolling z-score was much weaker: on pH it caught 32% of drifts, no better than its 39% chance rate, because its baseline follows the drift along with it.
