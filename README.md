@@ -96,9 +96,9 @@ I also timed the rolling z-score a few different ways, because I kept hearing th
 
 At 100k samples pandas is about 135x faster than my naive loop. But the part I found more interesting: a better *algorithm* (running sums) gave me 7x, and vectorisation gave another 19x on top of that. And NumPy was fastest at 1,000 samples but slower than pandas beyond that, so "vectorised" is not one thing: measure, don't assume. Every version is checked against the naive loop so I know they all compute the same thing. EWMA with pandas `ewm` was about 11x faster than the loop at 1M samples. CUSUM stays a loop, because each step depends on the previous one — some things just are sequential.
 
-## Limitations (say these out loud)
+## Limitations
 
-- This is a **simulation** with made-up ranges, noise and fault shapes. The dissolved-oxygen noise was assumed, not specified, because I didn't have a good feel for it.
+- This is a **simulation** with made-up ranges, noise and fault shapes.
 - My headline drift result depends on my own assumptions: a 4-hour ramp and 4-hourly checks. A faster drift would shrink the warning time a lot.
 - My thresholds are tuned and tested on the same simulated distribution. A fairer test would calibrate on one set of seeds and evaluate on a fresh set — that's on my list to fix.
 - The baselines come from a clean first hour, which real processes do not always give me.
