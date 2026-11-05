@@ -1,4 +1,5 @@
-"""Measure the detectors honestly.
+"""
+Measure the detectors honestly.
 
 For every detector and threshold we report
   * false alarms per hour on CLEAN data (alarm events, not samples)
