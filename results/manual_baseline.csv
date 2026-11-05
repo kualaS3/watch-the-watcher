@@ -1,0 +1,17 @@
+channel,fault,left_range_pct,flagged_by_checks_pct,check_delay_min
+pH,spike,0.0,0.0,
+pH,drift,100.0,100.0,330.41666666666663
+pH,offset,0.0,0.0,
+pH,stuck,0.0,0.0,
+temperature,spike,0.0,0.0,
+temperature,drift,100.0,100.0,326.8333333333333
+temperature,offset,0.0,0.0,
+temperature,stuck,0.0,0.0,
+weight,spike,0.0,0.0,
+weight,drift,100.0,100.0,319.5
+weight,offset,0.0,0.0,
+weight,stuck,0.0,0.0,
+DO,spike,0.0,0.0,
+DO,drift,100.0,100.0,326.8333333333333
+DO,offset,0.0,0.0,
+DO,stuck,0.0,0.0,
