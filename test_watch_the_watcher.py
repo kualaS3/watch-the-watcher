@@ -5,36 +5,87 @@ from detectors import (cusum_score, estimate_baseline, ewma_score, ewma_score_lo
                        flatline_score, rolling_zscore, rolling_zscore_loop,
                        rolling_zscore_numpy, zscore_score)
 from profile_rolling import rolling_zscore_loop_running
-from simulate import CHANNELS, FAULT_DURATION, WARMUP, simulate_run
+from simulate import (CHANNELS, CHECK_EVERY, FAULT_KINDS, SPIKE_GRACE, WARMUP, breach_index,
+                      check_indices, manual_check_index, simulate_run)
+
+
+# ---------------- channels ----------------
+def test_ranges_are_the_ones_requested_and_centred():
+    c = CHANNELS
+    assert (c["pH"].low, c["pH"].high) == (6.8, 7.2)
+    assert (c["temperature"].low, c["temperature"].high) == (36.5, 37.5)
+    assert (c["weight"].low, c["weight"].high) == (2300.0, 2600.0)
+    assert (c["DO"].low, c["DO"].high) == (30.0, 50.0)
+    for ch in c.values():
+        assert ch.mean == (ch.low + ch.high) / 2
+        assert abs(ch.sigma * 3 - ch.wobble) < 1e-12
+
+
+def test_clean_readings_stay_inside_the_range_and_match_resolution():
+    for name, ch in CHANNELS.items():
+        for seed in range(5):
+            x = simulate_run(ch, seed=seed).x
+            assert x.min() >= ch.low and x.max() <= ch.high, name
+            assert np.allclose(x / ch.resolution, np.round(x / ch.resolution), atol=1e-6)
+
+
+def test_ph_has_three_decimals_and_temperature_two():
+    ph = simulate_run(CHANNELS["pH"], seed=1).x
+    assert np.allclose(ph, np.round(ph, 3)) and not np.allclose(ph, np.round(ph, 2))
+    t = simulate_run(CHANNELS["temperature"], seed=1).x
+    assert np.allclose(t, np.round(t, 2))
 
 
 # ---------------- simulator ----------------
 def test_same_seed_is_reproducible():
-    a = simulate_run(CHANNELS["pH"], seed=5, fault_kind="step")
-    b = simulate_run(CHANNELS["pH"], seed=5, fault_kind="step")
+    a = simulate_run(CHANNELS["pH"], seed=5, fault_kind="offset")
+    b = simulate_run(CHANNELS["pH"], seed=5, fault_kind="offset")
     assert np.array_equal(a.x, b.x)
 
 
 def test_clean_and_faulted_runs_match_before_fault():
-    clean = simulate_run(CHANNELS["weight"], seed=7)
-    bad = simulate_run(CHANNELS["weight"], seed=7, fault_kind="step")
-    s = bad.fault.start
-    assert np.array_equal(clean.x[:s], bad.x[:s])
-    assert not np.array_equal(clean.x[s:], bad.x[s:])
+    for kind in FAULT_KINDS:
+        clean = simulate_run(CHANNELS["weight"], seed=7)
+        bad = simulate_run(CHANNELS["weight"], seed=7, fault_kind=kind)
+        s = bad.fault.start
+        assert np.array_equal(clean.x[:s], bad.x[:s]), kind
 
 
 def test_fault_labels_are_sane():
-    for kind in ("drift", "step", "stuck"):
+    for kind in FAULT_KINDS:
         run = simulate_run(CHANNELS["temperature"], seed=3, fault_kind=kind)
         assert run.fault.kind == kind
-        assert run.fault.start >= WARMUP
-        assert run.fault.end - run.fault.start == FAULT_DURATION
+        assert run.fault.start > WARMUP
         assert run.fault.end <= len(run.x)
 
 
-def test_stuck_sensor_repeats_one_value():
+def test_spike_is_short_and_then_recovers():
+    for seed in range(10):
+        clean = simulate_run(CHANNELS["DO"], seed=seed)
+        run = simulate_run(CHANNELS["DO"], seed=seed, fault_kind="spike")
+        f = run.fault
+        assert 1 <= f.length <= 3 and f.end == f.start + f.length + SPIKE_GRACE
+        assert np.array_equal(clean.x[f.start + f.length:], run.x[f.start + f.length:])
+        assert not np.array_equal(clean.x[f.start:f.start + f.length], run.x[f.start:f.start + f.length])
+
+
+def test_offset_is_constant_after_the_start():
+    clean = simulate_run(CHANNELS["pH"], seed=2)
+    run = simulate_run(CHANNELS["pH"], seed=2, fault_kind="offset")
+    diff = (run.x - clean.x)[run.fault.start:]
+    assert np.allclose(diff, diff[0], atol=0.0011)       # equal up to rounding
+    assert abs(abs(diff[0]) - 0.3 * CHANNELS["pH"].half_range) < 0.0011
+
+
+def test_drift_ramps_towards_and_past_the_limit():
+    for name, ch in CHANNELS.items():
+        run = simulate_run(ch, seed=4, fault_kind="drift")
+        assert breach_index(run) > run.fault.start, name
+
+
+def test_stuck_sensor_repeats_one_value_until_the_end():
     run = simulate_run(CHANNELS["pH"], seed=11, fault_kind="stuck")
-    seg = run.x[run.fault.start:run.fault.end]
+    seg = run.x[run.fault.start:]
     assert np.all(seg == seg[0])
 
 
@@ -42,6 +93,28 @@ def test_warmup_is_fault_free():
     for seed in range(20):
         run = simulate_run(CHANNELS["pH"], seed=seed, fault_kind="drift")
         assert run.fault.start > run.warmup
+
+
+# ---------------- manual checks ----------------
+def test_check_times_are_every_four_hours():
+    assert list(check_indices(4321)) == [CHECK_EVERY, 2 * CHECK_EVERY, 3 * CHECK_EVERY]
+    assert CHECK_EVERY * 10 / 3600 == 4.0
+
+
+def test_checks_see_drift_but_not_offset_spike_or_stuck():
+    for seed in range(5):
+        ch = CHANNELS["pH"]
+        assert manual_check_index(simulate_run(ch, seed, "drift")) > 0
+        for kind in ("offset", "spike", "stuck"):
+            assert manual_check_index(simulate_run(ch, seed, kind)) == -1, kind
+    assert manual_check_index(simulate_run(CHANNELS["pH"], 0)) == -1      # clean run: no fault
+
+
+def test_manual_check_flags_a_reading_outside_the_range():
+    run = simulate_run(CHANNELS["pH"], seed=9, fault_kind="offset")
+    run.x[CHECK_EVERY] = CHANNELS["pH"].high + 0.05
+    run.x[run.fault.start:CHECK_EVERY] = 7.0
+    assert manual_check_index(run) == CHECK_EVERY
 
 
 # ---------------- rolling z-score: all versions agree ----------------
