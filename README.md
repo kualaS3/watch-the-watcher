@@ -84,6 +84,8 @@ These are my results from one run of the evaluation. The full tables are in `res
 5. **Stuck sensor: only the flatline detector works** (100% within about 2 minutes). EWMA, CUSUM and z-score are at or below their chance rates. So no single detector covers every fault type, and I need one per fault type. A bit annoying, but that's the answer.
 6. **Slow-moving signals break textbook thresholds.** Weight shifts very slowly, so the CUSUM threshold I needed to stay under the false-alarm budget was very high. It then caught only 63% of drifts (chance rate 65%) and 60% of offsets (chance 55%): no real skill. Control-chart limits assume independent noise, and weight does not give me independent noise.
 
+I think a practical and real world benefit that can be derived from the results is the gain in time that the process can be in the optimal range. Because with earlier and more consistent detection, and 24/7 monitoring, faults are fixed earlier and 1-2 hours on each fault would translate into substantial gains to the bioreactor's production output. Especially when accounting for the high sensitivity of these process factors in relation to their productive efficiency. This is what gives me the motivation to explore this topic in these directions.
+
 ## Profiling (window = 60)
 
 I also timed the rolling z-score a few different ways, because I kept hearing that Python loops are slow and I wanted to know how slow:
