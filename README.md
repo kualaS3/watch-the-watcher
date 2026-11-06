@@ -55,6 +55,7 @@ Here's how I score them:
 
 - **False alarms per hour** on clean data, counted as alarm *events*, not individual samples. (One alarm that stays on for an hour is still one alarm.)
 - **Caught**: I count a fault as caught if an alarm *starts* inside a window that depends on the fault: for a spike, about 1 minute after it ends; for a drift, any time before the reading actually leaves the range; for offsets and stuck sensors, 2 hours.
+-  The window sizes are also based on the worst case timing of the routine check. If a fault starts right after a check, nobody is looking at the process for almost 4 hours, and a drift still needs to actually leave the range before the next check can flag it. So I think the windows are really asking whether the detector managed to say something while the human was guaranteed to be blind.
 - **Chance rate**: how often the same detector alarms inside the same window on *clean* data. This matters a lot, and I found it out the hard way: at 0.5 false alarms per hour, a 2-hour window contains a random alarm roughly half the time, so a catch rate near the chance rate means the detector has no real skill. An earlier version of mine used long windows and made the z-score look good at drifts when it was basically guessing.
 - **Delay**: median minutes from when the fault starts to the first alarm.
 - **Warning time** (drift only): how much warning I get before the reading leaves the range, and before the routine check would have flagged it.
