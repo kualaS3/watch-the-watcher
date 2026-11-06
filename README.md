@@ -101,13 +101,10 @@ At 100k samples pandas is about 135x faster than my naive loop. But the part I f
 
 ## Limitations
 
-- This is a **simulation** with made-up ranges, noise and fault shapes.
-- My headline drift result depends on my own assumptions: a 4-hour ramp and 4-hourly checks. A faster drift would shrink the warning time a lot.
-- My thresholds are tuned and tested on the same simulated distribution. A fairer test would calibrate on one set of seeds and evaluate on a fresh set — that's on my list to fix.
-- The baselines come from a clean first hour, which real processes do not always give me.
-- My CUSUM is never reset, so it stays "on" after a fault. A real system would reset it after an alarm.
-- Spikes are modelled as 1 to 3 samples, and I only inject one fault per run. Overlapping faults are not tested.
-- The manual check in my simulation only compares one reading to the range. A real operator (also me) would probably notice a frozen number or a trend, so I'm slightly underselling the human here.
+- This project uses simulated data from ranges, noise levels and fault shapes that I came up with. This is only a representation, and is not real data.
+- The faults are not attest to real faults, theres only one fault per run and overlapping faults were not tested. Spikes are also modelled as just 1 to 3 samples.
+- detector baselines are derived from the clean first hour, which sometimes real processes may not have the luxury of giving.
+- the thresholds currently are tuned and tested on the same data, which is prime territory for textbook overfitting. I've done it this way for now for the simplicity of just using one set of data. It's definitely not hard to have a separate set of seeds to tune first and then test on a fresh set.
 
 ## Files
 
