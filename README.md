@@ -68,7 +68,6 @@ And to keep the comparison honest, I tune every detector to the **same false-ala
 pip install -r requirements.txt
 python -m pytest -q          # 23 tests
 python evaluate.py           # ~10 s, writes results/
-python profile_rolling.py    # ~10 s, writes results/profile_timings.*
 ```
 
 The options I actually use: `python evaluate.py --runs 200 --target-fa 1.0 --seed 42`, if I want more runs or a looser alarm budget. If you'd rather click through it, the notebook `watch_the_watcher.ipynb` runs everything in Colab.
@@ -89,19 +88,6 @@ The ~5.5 h figure is not an estimate I picked. It is the median delay the evalua
 
 I think a practical and real world benefit that can be derived from the results is the gain in time that the process can be in the optimal range. Because with earlier and more consistent detection, and 24/7 monitoring, faults are fixed earlier and 1-2 hours on each fault would translate into substantial gains to the bioreactor's production output. Especially when accounting for the high sensitivity of these process factors in relation to their productive efficiency. This is what gives me the motivation to explore this topic in these directions.
 
-## Profiling (window = 60)
-
-I also timed the rolling z-score a few different ways, because I kept hearing that Python loops are slow and I wanted to know how slow:
-
-| samples | naive loop | running-sum loop | pandas | NumPy |
-|---|---|---|---|---|
-| 1,000 | 9.8 ms | 1.1 ms | 0.7 ms | 0.3 ms |
-| 10,000 | 59 ms | 5.9 ms | 0.7 ms | 2.1 ms |
-| 100,000 | 787 ms | 110 ms | 5.8 ms | 46 ms |
-| 1,000,000 | (skipped) | 770 ms | 43 ms | 391 ms |
-
-At 100k samples pandas is about 135x faster than my naive loop. But the part I found more interesting: a better *algorithm* (running sums) gave me 7x, and vectorisation gave another 19x on top of that. And NumPy was fastest at 1,000 samples but slower than pandas beyond that, so "vectorised" is not one thing: measure, don't assume. Every version is checked against the naive loop so I know they all compute the same thing. EWMA with pandas `ewm` was about 11x faster than the loop at 1M samples. CUSUM stays a loop, because each step depends on the previous one — some things just are sequential.
-
 ## Limitations
 
 - This project uses simulated data from ranges, noise levels and fault shapes that I came up with. This is only a representation, and is not real data.
@@ -116,8 +102,7 @@ If you're reading the code: `simulate.py` and `detectors.py` are the heart of it
 | File | What it does |
 |---|---|
 | `simulate.py` | Channels, noise model, fault injection, manual-check helpers |
-| `detectors.py` | Rolling z-score (3 implementations), EWMA, CUSUM, flatline |
+| `detectors.py` | Rolling z-score (4 implementations), EWMA, CUSUM, flatline |
 | `evaluate.py` | Detection, delay, false alarms, chance rate, calibration, plots |
-| `profile_rolling.py` | Timing: loop vs pandas vs NumPy, with correctness checks |
 | `test_watch_the_watcher.py` | 23 tests |
 | `watch_the_watcher.ipynb` | Colab notebook that runs everything |
