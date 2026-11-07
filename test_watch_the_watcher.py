@@ -3,8 +3,7 @@ import numpy as np
 
 from detectors import (cusum_score, estimate_baseline, ewma_score, ewma_score_loop,
                        flatline_score, rolling_zscore, rolling_zscore_loop,
-                       rolling_zscore_numpy, zscore_score)
-from profile_rolling import rolling_zscore_loop_running
+                       rolling_zscore_loop_running, rolling_zscore_numpy, zscore_score)
 from simulate import (CHANNELS, CHECK_EVERY, FAULT_KINDS, FLAT_MIN_SAMPLES, SPIKE_GRACE,
                       WARMUP, breach_index, check_indices, manual_check_index, simulate_run)
 

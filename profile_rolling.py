@@ -22,29 +22,11 @@ import numpy as np
 import pandas as pd
 
 from detectors import (EPS, ewma_score, ewma_score_loop, rolling_zscore,
-                       rolling_zscore_loop, rolling_zscore_numpy)
+                       rolling_zscore_loop, rolling_zscore_loop_running,
+                       rolling_zscore_numpy)
 
 SIZES = [1_000, 10_000, 100_000, 1_000_000]
 NAIVE_MAX = 100_000        # the naive loop at 1M samples would take minutes
-
-
-def rolling_zscore_loop_running(x, window):
-    """Plain loop, but O(n): keep running sums instead of re-summing each window."""
-    xs = [float(v) for v in x]
-    shift = xs[0]
-    xs = [v - shift for v in xs]          # z-score is shift-invariant; reduces cancellation error
-    n = len(xs)
-    z = np.full(n, np.nan)
-    s = sum(xs[:window])
-    s2 = sum(v * v for v in xs[:window])
-    for t in range(window, n):
-        mean = s / window
-        var = max((s2 - window * mean * mean) / (window - 1), 0.0)
-        z[t] = (xs[t] - mean) / max(var ** 0.5, EPS)
-        old, new = xs[t - window], xs[t]
-        s += new - old
-        s2 += new * new - old * old
-    return z
 
 
 def best_of(fn, repeat):

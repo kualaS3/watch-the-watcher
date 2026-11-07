@@ -12,8 +12,8 @@ ewma_score     : exponentially weighted moving average of the deviation from bas
 cusum_score    : cumulative sum of deviations (sensitive to small persistent shifts)
 flatline_score : is the recent variation suspiciously close to zero? (stuck sensor)
 
-The rolling z-score exists in three forms (plain loop, pandas, NumPy) so profile_rolling.py
-can time them and the tests can check they all agree.
+The rolling z-score exists in four forms (plain loop, running-sum loop, pandas, NumPy)
+and the tests check they all agree.
 """
 import numpy as np
 import pandas as pd
@@ -34,7 +34,7 @@ def estimate_baseline(x, warmup):
 
 
 # --------------------------------------------------------------------------
-# Rolling z-score: three implementations of the same calculation
+# Rolling z-score: four implementations of the same calculation
 # z[t] = (x[t] - mean(x[t-w : t])) / std(x[t-w : t], ddof=1)   (window excludes x[t])
 # --------------------------------------------------------------------------
 def rolling_zscore_loop(x, window):
@@ -70,6 +70,25 @@ def rolling_zscore_numpy(x, window):
     mean = win.mean(axis=1)
     sd = np.maximum(win.std(axis=1, ddof=1), EPS)
     z[window:] = (x[window:] - mean) / sd
+    return z
+
+
+def rolling_zscore_loop_running(x, window):
+    """Plain loop, but O(n): keep running sums instead of re-summing each window."""
+    xs = [float(v) for v in x]
+    shift = xs[0]
+    xs = [v - shift for v in xs]          # z-score is shift-invariant; reduces cancellation error
+    n = len(xs)
+    z = np.full(n, np.nan)
+    s = sum(xs[:window])
+    s2 = sum(v * v for v in xs[:window])
+    for t in range(window, n):
+        mean = s / window
+        var = max((s2 - window * mean * mean) / (window - 1), 0.0)
+        z[t] = (xs[t] - mean) / max(var ** 0.5, EPS)
+        old, new = xs[t - window], xs[t]
+        s += new - old
+        s2 += new * new - old * old
     return z
 
 
