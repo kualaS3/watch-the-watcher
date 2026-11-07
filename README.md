@@ -36,7 +36,7 @@ Every run is 12 hours of readings, one every 10 seconds. The first hour is fault
 | **offset** | calibration error | 30% of half-range | constant once it starts, usually stays *inside* the range |
 | **stuck** | instrument failure: reading freezes | n/a | repeats its last value until the end |
 
-**I simulate the routine checks too**, because that's the thing I'm comparing against: at 4, 8 and 12 hours someone reads the value and flags it only if it is outside the standard range. That is the baseline the detectors have to beat. There's not much point building a detector that does worse than a human glancing at a number three times a shift.
+**I simulate the routine checks too**, because that's the thing I'm comparing against: at 4, 8 and 12 hours someone reviews the readings since the last check and flags the fault if any of them is outside the standard range, or if the trace has been flat for at least an hour (a frozen sensor is only obvious once enough flat data is on the graph). That is the baseline the detectors have to beat. There's not much point building a detector that does worse than a human reviewing the log three times a shift.
 
 ## Detectors
 
@@ -66,7 +66,7 @@ And to keep the comparison honest, I tune every detector to the **same false-ala
 
 ```
 pip install -r requirements.txt
-python -m pytest -q          # 23 tests
+python -m pytest -q          # 25 tests
 python evaluate.py           # ~10 s, writes results/
 ```
 
@@ -76,14 +76,14 @@ The options I actually use: `python evaluate.py --runs 200 --target-fa 1.0 --see
 
 These are my results from one run of the evaluation. The full tables are in `results/summary.md`, and the plots are `results/example_runs.png` and `results/tradeoff.png`. If you run it yourself and get slightly different numbers, trust yours. This is a snapshot, not gospel.
 
-1. **The routine checks only catch faults that leave the range.** In my simulation they flagged 100% of drifts (about 5.5 h after the drift began, at the 8 h check) and 0% of spikes, offsets and stuck sensors, because those never leave the range. A calibration offset or a frozen sensor can sit inside the range indefinitely, and the routine check will never see it. This was honestly the result that sold me on the whole project.
+1. **The routine checks only catch faults that leave the range, plus frozen sensors once enough flat data has piled up.** In my simulation they flagged 100% of drifts (about 5.5 h after the drift began, at the 8 h check) and 100% of stuck sensors — but only after about 2 hours, because a human needs at least an hour of flat trace before calling a sensor stuck. Spikes and offsets still scored 0%: spikes in my simulation never actually leave the range, and a calibration offset can sit inside the range indefinitely, so the routine check will never see it. This was honestly the result that sold me on the whole project.
 
 The ~5.5 h figure is not an estimate I picked. It is the median delay the evaluation measured for the routine check on drifts (320-330 min across the four channels, in results/manual_baseline.csv): the drift first has to ramp far enough to leave the range, then it still has to wait for the next 4-hourly check to be seen.
 
 2. **Drift: EWMA and CUSUM give hours of warning.** EWMA caught 100% of drifts on every channel, roughly 140 to 175 minutes before the reading left the range and about 300 minutes before the routine check would have flagged it. CUSUM did similarly on pH, temperature and DO. The rolling z-score was much weaker: on pH it caught 32% of drifts, no better than its 39% chance rate, because its baseline follows the drift along with it.
 3. **Spikes: only the rolling z-score.** It caught 94 to 100% with a 0% chance rate. EWMA caught 15 to 45% and CUSUM 4 to 14%, because a single spike barely moves an averaged score. Which makes sense when I think about it: the memory that helps them with drifts is exactly what makes them blind here.
 4. **Offsets: all of the level-based detectors react within about 3 minutes**, though EWMA (98 to 100%) was more reliable than the z-score (64 to 100%), whose baseline adapts to the new level.
-5. **Stuck sensor: only the flatline detector works** (100% within about 2 minutes). EWMA, CUSUM and z-score are at or below their chance rates. So no single detector covers every fault type, and I need one per fault type. A bit annoying, but that's the answer.
+5. **Stuck sensor: only the flatline detector works** (100% within about 2 minutes). EWMA, CUSUM and z-score are at or below their chance rates. The routine check does eventually flag a stuck sensor too, but only about 2 hours later, once a full hour of flat trace is sitting in the window it reviews. So no single detector covers every fault type, and I need one per fault type. A bit annoying, but that's the answer.
 6. **Slow-moving signals break textbook thresholds.** Weight shifts very slowly, so the CUSUM threshold I needed to stay under the false-alarm budget was very high. It then caught only 63% of drifts (chance rate 65%) and 60% of offsets (chance 55%): no real skill. Control-chart limits assume independent noise, and weight does not give me independent noise.
 
 I think a practical and real world benefit that can be derived from the results is the gain in time that the process can be in the optimal range. Because with earlier and more consistent detection, and 24/7 monitoring, faults are fixed earlier and 1-2 hours on each fault would translate into substantial gains to the bioreactor's production output. Especially when accounting for the high sensitivity of these process factors in relation to their productive efficiency. This is what gives me the motivation to explore this topic in these directions.
@@ -104,5 +104,5 @@ If you're reading the code: `simulate.py` and `detectors.py` are the heart of it
 | `simulate.py` | Channels, noise model, fault injection, manual-check helpers |
 | `detectors.py` | Rolling z-score (4 implementations), EWMA, CUSUM, flatline |
 | `evaluate.py` | Detection, delay, false alarms, chance rate, calibration, plots |
-| `test_watch_the_watcher.py` | 23 tests |
+| `test_watch_the_watcher.py` | 25 tests |
 | `watch_the_watcher.ipynb` | Colab notebook that runs everything |
