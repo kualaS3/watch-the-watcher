@@ -33,7 +33,7 @@ Every run is 12 hours of readings, one every 10 seconds. The first hour is fault
 |---|---|---|---|
 | **spike** | a test or process step that briefly bumps a reading | 50% of half-range | lasts 1 to 3 samples, then recovers |
 | **drift** | slow creep towards the limit | ramps to 120% of half-range over 4 h | passes the limit, then holds |
-| **offset** | calibration error | 30% of half-range | constant once it starts, usually stays *inside* the range |
+| **offset** | calibration error | 30% of half-range | constant once it starts, usually stays inside the range |
 | **stuck** | instrument failure: reading freezes | n/a | repeats its last value until the end |
 
 **I simulate the routine checks too**, because that's the thing I'm comparing against: at 4, 8 and 12 hours someone reviews the readings since the last check and flags the fault if any of them is outside the standard range, or if the trace has been flat for at least an hour (a frozen sensor is only obvious once enough flat data is on the graph). That is the baseline the detectors have to beat. There's not much point building a detector that does worse than a human reviewing the log three times a shift.
@@ -53,10 +53,10 @@ I want to point out that although the detectors are mostly complementary, where 
 
 Here's how I score them:
 
-- **False alarms per hour** on clean data, counted as alarm *events*, not individual samples. (One alarm that stays on for an hour is still one alarm.)
-- **Caught**: I count a fault as caught if an alarm *starts* inside a window that depends on the fault: for a spike, about 1 minute after it ends; for a drift, any time before the reading actually leaves the range; for offsets and stuck sensors, 2 hours.
+- **False alarms per hour** on clean data, counted as alarm events, not individual samples. (One alarm that stays on for an hour is still one alarm.)
+- **Caught**: I count a fault as caught if an alarm starts inside a window that depends on the fault: for a spike, about 1 minute after it ends; for a drift, any time before the reading actually leaves the range; for offsets and stuck sensors, 2 hours.
 -  The window sizes are also based on the worst case timing of the routine check. If a fault starts right after a check, nobody is looking at the process for almost 4 hours, and a drift still needs to actually leave the range before the next check can flag it. So I think the windows are really asking whether the detector managed to say something while the human was guaranteed to be blind.
-- **Chance rate**: how often the same detector alarms inside the same window on *clean* data. This matters a lot, and I found it out the hard way: at 0.5 false alarms per hour, a 2-hour window contains a random alarm roughly half the time, so a catch rate near the chance rate means the detector has no real skill. An earlier version of mine used long windows and made the z-score look good at drifts when it was basically guessing.
+- **Chance rate**: how often the same detector alarms inside the same window on clean data. This matters a lot, and I found it out the hard way: at 0.5 false alarms per hour, a 2-hour window contains a random alarm roughly half the time, so a catch rate near the chance rate means the detector has no real skill. An earlier version of mine used long windows and made the z-score look good at drifts when it was basically guessing.
 - **Delay**: median minutes from when the fault starts to the first alarm.
 - **Warning time** (drift only): how much warning I get before the reading leaves the range, and before the routine check would have flagged it.
 
