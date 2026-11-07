@@ -2,26 +2,26 @@
 
 100 runs per channel per fault type. Each run is 12 h sampled every 10 s (1 h clean warm-up, fault starts between 1.25 h and 3.8 h, faults persist except spikes). All process ranges are illustrative.
 
-## Baseline: routine manual checks every 4 h (flag only if outside the range)
+## Baseline: routine manual checks every 4 h (each check reviews the readings since the last one; flags a fault if any reviewed reading is outside the range, or the trace has been flat for at least 1 h)
 
 | channel | fault | left the range (%) | flagged by a check (%) | check delay (min) |
 |---|---|---|---|---|
 | pH | spike | 0 | 0 | n/a |
-| pH | drift | 100 | 100 | 330 |
+| pH | drift | 100 | 100 | 320 |
 | pH | offset | 0 | 0 | n/a |
-| pH | stuck | 0 | 0 | n/a |
+| pH | stuck | 0 | 100 | 138 |
 | temperature | spike | 0 | 0 | n/a |
-| temperature | drift | 100 | 100 | 327 |
+| temperature | drift | 100 | 100 | 325 |
 | temperature | offset | 0 | 0 | n/a |
-| temperature | stuck | 0 | 0 | n/a |
+| temperature | stuck | 0 | 100 | 122 |
 | weight | spike | 0 | 0 | n/a |
 | weight | drift | 100 | 100 | 320 |
 | weight | offset | 0 | 0 | n/a |
-| weight | stuck | 0 | 0 | n/a |
+| weight | stuck | 0 | 100 | 144 |
 | DO | spike | 0 | 0 | n/a |
 | DO | drift | 100 | 100 | 327 |
 | DO | offset | 0 | 0 | n/a |
-| DO | stuck | 0 | 0 | n/a |
+| DO | stuck | 0 | 100 | 133 |
 
 ## Detection: % of faults caught (% by chance) / median delay (min)
 
@@ -56,12 +56,12 @@ Median minutes before the reading left the range / before the 4-hourly check fla
 | DO | ewma | 6.5 | 0.44 |  | 160 / 314 |  |  |
 | DO | flatline | 5.0 | 0.01 |  | 64 / 236 |  |  |
 | DO | zscore | 3.5 | 0.46 |  | 120 / 266 |  |  |
-| pH | cusum | 60.0 | 0.49 |  | 142 / 303 |  |  |
-| pH | ewma | 9.0 | 0.43 |  | 139 / 303 |  |  |
+| pH | cusum | 60.0 | 0.49 |  | 142 / 295 |  |  |
+| pH | ewma | 9.0 | 0.43 |  | 139 / 295 |  |  |
 | pH | flatline | 10.0 | 0.01 |  | n/a / n/a |  |  |
-| pH | zscore | 4.0 | 0.16 |  | 91 / 264 |  |  |
-| temperature | cusum | 40.0 | 0.45 |  | 153 / 304 |  |  |
-| temperature | ewma | 7.5 | 0.40 |  | 151 / 303 |  |  |
+| pH | zscore | 4.0 | 0.16 |  | 91 / 254 |  |  |
+| temperature | cusum | 40.0 | 0.45 |  | 153 / 301 |  |  |
+| temperature | ewma | 7.5 | 0.40 |  | 151 / 302 |  |  |
 | temperature | flatline | 5.0 | 0.19 |  | 99 / 238 |  |  |
 | temperature | zscore | 4.0 | 0.18 |  | 87 / 236 |  |  |
 | weight | cusum | 70.0 | 0.50 |  | 179 / 310 |  |  |
