@@ -5,8 +5,8 @@ from detectors import (cusum_score, estimate_baseline, ewma_score, ewma_score_lo
                        flatline_score, rolling_zscore, rolling_zscore_loop,
                        rolling_zscore_numpy, zscore_score)
 from profile_rolling import rolling_zscore_loop_running
-from simulate import (CHANNELS, CHECK_EVERY, FAULT_KINDS, SPIKE_GRACE, WARMUP, breach_index,
-                      check_indices, manual_check_index, simulate_run)
+from simulate import (CHANNELS, CHECK_EVERY, FAULT_KINDS, FLAT_MIN_SAMPLES, SPIKE_GRACE,
+                      WARMUP, breach_index, check_indices, manual_check_index, simulate_run)
 
 
 # ---------------- channels ----------------
@@ -101,13 +101,35 @@ def test_check_times_are_every_four_hours():
     assert CHECK_EVERY * 10 / 3600 == 4.0
 
 
-def test_checks_see_drift_but_not_offset_spike_or_stuck():
+def test_checks_see_drift_and_stuck_but_not_offset_or_spike():
+    # Window-review checks: a drift leaves the range inside the window, and a stuck
+    # sensor shows >= 1 h of flat trace, so both get flagged at a check. Offsets stay
+    # inside the range, and the simulated spikes (50% of half-range) never leave it
+    # either, so neither is ever flagged.
     for seed in range(5):
         ch = CHANNELS["pH"]
         assert manual_check_index(simulate_run(ch, seed, "drift")) > 0
-        for kind in ("offset", "spike", "stuck"):
+        assert manual_check_index(simulate_run(ch, seed, "stuck")) > 0
+        for kind in ("offset", "spike"):
             assert manual_check_index(simulate_run(ch, seed, kind)) == -1, kind
     assert manual_check_index(simulate_run(CHANNELS["pH"], 0)) == -1      # clean run: no fault
+
+
+def test_window_review_flags_a_breach_between_checks():
+    # A single out-of-range reading in the middle of a window is seen at that
+    # window's check, even though the reading at the check itself is in range.
+    run = simulate_run(CHANNELS["pH"], seed=9, fault_kind="offset")
+    run.x[CHECK_EVERY - 10] = CHANNELS["pH"].high + 0.05
+    assert manual_check_index(run) == CHECK_EVERY
+
+
+def test_stuck_is_flagged_only_once_an_hour_of_flat_is_visible():
+    for seed in range(5):
+        run = simulate_run(CHANNELS["pH"], seed, "stuck")
+        if run.fault.start + FLAT_MIN_SAMPLES <= CHECK_EVERY:
+            assert manual_check_index(run) == CHECK_EVERY
+        else:
+            assert manual_check_index(run) == 2 * CHECK_EVERY
 
 
 def test_manual_check_flags_a_reading_outside_the_range():
