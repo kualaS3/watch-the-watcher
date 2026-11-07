@@ -36,7 +36,7 @@ Every run is 12 hours of readings, one every 10 seconds. The first hour is fault
 | **offset** | calibration error | 30% of half-range | constant once it starts, usually stays inside the range |
 | **stuck** | instrument failure: reading freezes | n/a | repeats its last value until the end |
 
-**I simulate the routine checks too**, because that's the thing I'm comparing against: at 4, 8 and 12 hours someone reviews the readings since the last check and flags the fault if any of them is outside the standard range, or if the trace has been flat for at least an hour (a frozen sensor is only obvious once enough flat data is on the graph). That is the baseline the detectors have to beat. There's not much point building a detector that does worse than a human reviewing the log three times a shift.
+I simulate the routine checks too, because that's what I'm comparing against: at 4, 8 and 12 hours someone reviews the readings since the last check and flags the fault if any of them is outside the standard range, or if the trace has been flat for at least an hour (a frozen sensor is only obvious once enough flat data is on the graph). That is the baseline the detectors have to beat. There's not much point building a detector that does worse than a human reviewing the log three times a shift.
 
 ## Detectors
 
@@ -60,7 +60,7 @@ Here's how I score them:
 - **Delay**: median minutes from when the fault starts to the first alarm.
 - **Warning time** (drift only): how much warning I get before the reading leaves the range, and before the routine check would have flagged it.
 
-And to keep the comparison honest, I tune every detector to the **same false-alarm budget** (default 0.5/hour, tuned per channel). A detector that alarms constantly will "catch" everything and be completely useless, so the budget is kind of the whole game.
+And to keep the comparison honest, I tune every detector to the same false-alarm budget (default 0.5/hour, tuned per channel). A detector that alarms constantly will "catch" everything and be completely useless, so the budget is kind of the whole game.
 
 ## Run it (Google Colab or any Python 3.9+)
 
@@ -74,7 +74,7 @@ The options I actually use: `python evaluate.py --runs 200 --target-fa 1.0 --see
 
 ## Results snapshot (seed 0, 100 runs per cell, 0.5 false alarms/hour budget)
 
-These are my results from one run of the evaluation. The full tables are in `results/summary.md`, and the plots are `results/example_runs.png` and `results/tradeoff.png`. If you run it yourself and get slightly different numbers, trust yours. This is a snapshot, not gospel.
+These are my results from one run of the evaluation. The full tables are in `results/summary.md`, and the plots are `results/example_runs.png` and `results/tradeoff.png`. If you run it yourself and get slightly different numbers, trust yours. This is a snapshot, not a gospel.
 
 1. **The routine checks only catch faults that leave the range, plus frozen sensors once enough flat data has piled up.** In my simulation they flagged 100% of drifts (about 5.5 h after the drift began, at the 8 h check) and 100% of stuck sensors — but only after about 2 hours, because a human needs at least an hour of flat trace before calling a sensor stuck. Spikes and offsets still scored 0%: spikes in my simulation never actually leave the range, and a calibration offset can sit inside the range indefinitely, so the routine check will never see it. This was honestly the result that sold me on the whole project.
 
