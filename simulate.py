@@ -15,8 +15,12 @@ from the centre to a limit):
 
 Faults other than spikes persist until the end of the run, like a real fault nobody has fixed.
 
-Routine manual checks are simulated too: every 4 hours someone reads the value and flags it
-only if it is outside the standard range. That is the baseline the detectors are compared with.
+Routine manual checks are simulated too: every 4 hours someone reviews the whole window of
+readings since the previous check (that is what the real routine check looks like) and flags
+the fault if any reading in the window is outside the standard range, or if the trace has been
+flat for at least an hour (a stuck sensor is only obvious once enough frozen data is on the
+graph). The flag time is the check itself: nothing is "seen" until someone looks. That is the
+baseline the detectors are compared with.
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -30,6 +34,7 @@ FAULT_START_MAX = 1380             # faults begin between 1.25 h and 3.8 h (befo
 DRIFT_RAMP = 1440                  # drift takes 4 h to reach its full size
 SPIKE_GRACE = 6                    # a spike counts as caught if alarmed within 1 min of ending
 CHECK_EVERY = 1440                 # manual check every 4 h (samples)
+FLAT_MIN_SAMPLES = 360             # 1 h of flat trace before a human calls a sensor stuck
 
 FAULT_KINDS = ("spike", "drift", "offset", "stuck")
 # Default fault sizes, as a fraction of the half-range (signed at random per run)
@@ -112,14 +117,49 @@ def breach_index(run: Run) -> int:
     return int(np.argmax(bad)) if bad.any() else -1
 
 
+def _run_starts(x: np.ndarray) -> np.ndarray:
+    """Index where the run of identical values ending at each sample begins."""
+    change = np.empty(len(x), dtype=bool)
+    change[0] = True
+    change[1:] = x[1:] != x[:-1]
+    idx = np.arange(len(x))
+    return np.maximum.accumulate(np.where(change, idx, 0))
+
+
 def manual_check_index(run: Run) -> int:
-    """First manual check, at/after the fault start, that sees an out-of-range reading, or -1."""
+    """First routine check that flags the fault, or -1.
+
+    The check reviews the whole window of readings since the previous check, the way the
+    real routine check does. It flags the fault at a check if either:
+      * any reading in the window (at/after the fault start) is outside the range, or
+      * the trace has been flat for at least FLAT_MIN_SAMPLES inside the window, counting
+        only flat that belongs to the fault — a human needs about an hour of frozen data
+        on the graph before calling a sensor stuck.
+    The returned index is the check itself: the fault is only seen when someone looks,
+    so a fault at hour 5 is "detected" by the human at the 8 h check.
+    """
     if run.fault is None:
         return -1
     bad = out_of_range(run)
+    bad[:run.fault.start] = False
+    starts = _run_starts(run.x)
+    prev = 0
     for c in check_indices(len(run.x)):
-        if c >= run.fault.start and bad[c]:
-            return int(c)
+        c = int(c)
+        if c >= run.fault.start:
+            if bad[prev:c + 1].any():
+                return c
+            ends = np.arange(prev, c + 1)
+            # A flat run only counts for the part of it that lies inside this window
+            # and at/after the fault start. (A run can begin a sample or two before
+            # the fault start: the frozen value repeats the last healthy reading, and
+            # rounded healthy readings sometimes repeat too.)
+            visible = ends - np.maximum.reduce(
+                [starts[prev:c + 1], np.full(c + 1 - prev, prev),
+                 np.full(c + 1 - prev, run.fault.start)]) + 1
+            if (visible >= FLAT_MIN_SAMPLES).any():
+                return c
+        prev = c
     return -1
 
 

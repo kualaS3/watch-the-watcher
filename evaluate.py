@@ -195,7 +195,7 @@ def markdown_summary(cal, base, target_fa, n_runs):
              f"{n_runs} runs per channel per fault type. Each run is 12 h sampled every "
              f"{SAMPLE_SECONDS} s (1 h clean warm-up, fault starts between 1.25 h and 3.8 h, "
              "faults persist except spikes). All process ranges are illustrative.", "",
-             "## Baseline: routine manual checks every 4 h (flag only if outside the range)", "",
+             "## Baseline: routine manual checks every 4 h (each check reviews the readings since the last one; flags a fault if any reviewed reading is outside the range, or the trace has been flat for at least 1 h)", "",
              "| channel | fault | left the range (%) | flagged by a check (%) | check delay (min) |",
              "|---|---|---|---|---|"]
     for _, r in base.iterrows():
