@@ -14,7 +14,7 @@ So in this project, my aim is to explore the use of statistical detectors and ex
 
 ## Disclaimer? Values are only meant for simulation
 
-Every range, noise level and fault size below is an **illustrative, made-up value** that I came up with for this project. Nothing here is derived or taken from any real life process or actual data. They are simply ranges that I think should be typical for these variables.
+Every range, noise level and fault size below is an illustrative, made-up value list that I came up with for this project. Nothing here is derived or taken from any real life process or actual data. They are simply ranges that I think should be typical for these variables.
 
 | Channel | Standard range | Healthy wobble (max swing) | Resolution | Behaviour |
 |---|---|---|---|---|
@@ -70,13 +70,13 @@ python -m pytest -q          # 25 tests
 python evaluate.py           # ~10 s, writes results/
 ```
 
-The options I actually use: `python evaluate.py --runs 200 --target-fa 1.0 --seed 42`, if I want more runs or a looser alarm budget. If you'd rather click through it, the notebook `watch_the_watcher.ipynb` runs everything in Colab.
+The options I actually use: `python evaluate.py --runs 200 --target-fa 1.0 --seed 42`, if I want more runs or a looser alarm budget. For clicking through: the notebook `watch_the_watcher.ipynb` runs everything in Colab.
 
 ## Results snapshot (seed 0, 100 runs per cell, 0.5 false alarms/hour budget)
 
 These are my results from one run of the evaluation. The full tables are in `results/summary.md`, and the plots are `results/example_runs.png` and `results/tradeoff.png`. If you run it yourself and get slightly different numbers, trust yours. This is a snapshot, not a gospel.
 
-1. **The routine checks only catch faults that leave the range, plus frozen sensors once enough flat data has piled up.** In my simulation they flagged 100% of drifts (about 5.5 h after the drift began, at the 8 h check) and 100% of stuck sensors — but only after about 2 hours, because a human needs at least an hour of flat trace before calling a sensor stuck. Spikes and offsets still scored 0%: spikes in my simulation never actually leave the range, and a calibration offset can sit inside the range indefinitely, so the routine check will never see it. This was honestly the result that sold me on the whole project.
+1. **The routine checks only catch faults that leave the range, plus frozen sensors once enough flat data has piled up.** In my simulation they flagged 100% of drifts (about 5.5 h after the drift began, at the 8 h check) and 100% of stuck sensors, but only after about 2 hours, because a human needs at least an hour of flat trace before calling a sensor stuck. Spikes and offsets still scored 0%: spikes in my simulation never actually leave the range, and a calibration offset can sit inside the range indefinitely, so the routine check will never see it. This was honestly the result that sold me on the whole project.
 
 The ~5.5 h figure is not an estimate I picked. It is the median delay the evaluation measured for the routine check on drifts (320-330 min across the four channels, in results/manual_baseline.csv): the drift first has to ramp far enough to leave the range, then it still has to wait for the next 4-hourly check to be seen.
 
