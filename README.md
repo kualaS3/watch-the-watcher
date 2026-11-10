@@ -76,6 +76,17 @@ The options I actually use: `python evaluate.py --runs 200 --target-fa 1.0 --see
 
 These are my results from one run of the evaluation. The full tables are in `results/summary.md`, and the plots are `results/example_runs.png` and `results/tradeoff.png`. If you run it yourself and get slightly different numbers, trust yours. This is a snapshot, not a gospel.
 
+This table compares the human routine check versus the performance of the best detector. In practice, the tested best detector would be used so this comparison makes the most sense. I think it sums up the project's results pretty nicely.
+
+| Fault | Routine check | Best detector |
+|---|---|---|
+| Drift | 100% caught, but ~5.5h late | EWMA: 100%, ~140–175 min *before* the reading leaves the range, ~300 min before the check |
+| Spike | 0% — never leaves the range | Rolling z-score: 94–100%, instantly |
+| Offset | 0% — sits inside the range forever | EWMA: 98–100%, in ~1–3 min |
+| Stuck | 100%, but ~2h late | Flatline: 100%, in ~2 min |
+
+So the detectors don't just catch more faults than the standard process monitoring routine checks, but they are also warn the user hours before the problem reaches criticality, instead of hours after it starts. Studying the tradeoffs shows that no single detector is a one-size-fits-all, and using different detectors for different fault modalities is the way to go.
+
 1. **The routine checks only catch faults that leave the range, plus frozen sensors once enough flat data has piled up.** In my simulation they flagged 100% of drifts (about 5.5 h after the drift began, at the 8 h check) and 100% of stuck sensors, but only after about 2 hours, because a human needs at least an hour of flat trace before calling a sensor stuck. Spikes and offsets still scored 0%: spikes in my simulation never actually leave the range, and a calibration offset can sit inside the range indefinitely, so the routine check will never see it. This was honestly the result that sold me on the whole project.
 
 The ~5.5 h figure is not an estimate I picked. It is the median delay the evaluation measured for the routine check on drifts (320-330 min across the four channels, in results/manual_baseline.csv): the drift first has to ramp far enough to leave the range, then it still has to wait for the next 4-hourly check to be seen.
