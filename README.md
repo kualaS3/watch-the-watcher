@@ -54,7 +54,7 @@ I want to point out that although the detectors are mostly complementary, where 
 Here's how I score them:
 
 - **False alarms per hour** on clean data, counted as alarm events, not individual samples. (One alarm that stays on for an hour is still one alarm.)
-- **Caught**: I count a fault as caught if an alarm starts inside a window that depends on the fault: for a spike, about 1 minute after it ends; for a drift, any time before the reading actually leaves the range; for offsets and stuck sensors, 2 hours.
+- **Caught**: I count a fault as caught if an alarm starts inside a window that depends on the fault. For a spike, about 1 minute after it ends. For a drift, any time before the reading actually leaves the range. For offsets and stuck sensors, 2 hours.
 -  The window sizes are also based on the worst case timing of the routine check. If a fault starts right after a check, nobody is looking at the process for almost 4 hours, and a drift still needs to actually leave the range before the next check can flag it. So I think the windows are really asking whether the detector managed to say something while the human was guaranteed to be blind.
 - **Chance rate**: how often the same detector alarms inside the same window on clean data. This matters a lot, and I found it out the hard way: at 0.5 false alarms per hour, a 2-hour window contains a random alarm roughly half the time, so a catch rate near the chance rate means the detector has no real skill. An earlier version of mine used long windows and made the z-score look good at drifts when it was basically guessing.
 - **Delay**: median minutes from when the fault starts to the first alarm.
@@ -81,8 +81,8 @@ This table compares the human routine check versus the performance of the best d
 | Fault | Routine check | Best detector |
 |---|---|---|
 | Drift | 100% caught, but ~5.5h late | EWMA: 100%, ~140–175 min *before* the reading leaves the range, ~300 min before the check |
-| Spike | 0% — never leaves the range | Rolling z-score: 94–100%, instantly |
-| Offset | 0% — sits inside the range forever | EWMA: 98–100%, in ~1–3 min |
+| Spike | 0% - never leaves the range | Rolling z-score: 94–100%, instantly |
+| Offset | 0% - sits inside the range forever | EWMA: 98–100%, in ~1–3 min |
 | Stuck | 100%, but ~2h late | Flatline: 100%, in ~2 min |
 
 So the detectors don't just catch more faults than the standard process monitoring routine checks, but they are also warn the user hours before the problem reaches criticality, instead of hours after it starts. Studying the tradeoffs shows that no single detector is a one-size-fits-all, and using different detectors for different fault modalities is the way to go.
