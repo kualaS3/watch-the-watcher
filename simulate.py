@@ -29,7 +29,7 @@ import numpy as np
 
 SAMPLE_SECONDS = 10                # one reading every 10 s
 N_SAMPLES = 4321                   # 12 h, with the final sample landing exactly on the 12 h mark
-WARMUP = 360                       # first hour is fault-free; used to learn the baseline
+WARMUP = 360                       # first hour is fault-free. It is used to learn the baseline
 FAULT_START_MAX = 1380             # faults begin between 1.25 h and 3.8 h (before the 4 h check)
 DRIFT_RAMP = 1440                  # drift takes 4 h to reach its full size
 SPIKE_GRACE = 6                    # a spike counts as caught if alarmed within 1 min of ending
@@ -70,7 +70,7 @@ CHANNELS = {
     "pH": Channel("pH", "pH", 6.8, 7.2, wobble=0.055, phi=0.90, resolution=0.001),
     "temperature": Channel("temperature", "degC", 36.5, 37.5, wobble=0.12, phi=0.80,
                            resolution=0.01, cycle_amp=0.6, cycle_period=120),
-    # weight shifts slowly (high phi); wobble of 20 kg
+    # weight shifts slowly (high phi), with a wobble of 20 kg
     "weight": Channel("weight", "kg", 2300.0, 2600.0, wobble=20.0, phi=0.97, resolution=1.0),
     # DO wobble was not specified: assumed +/- 2 % saturation
     "DO": Channel("DO", "% sat", 30.0, 50.0, wobble=2.0, phi=0.70, resolution=0.1),
@@ -133,7 +133,7 @@ def manual_check_index(run: Run) -> int:
     real routine check does. It flags the fault at a check if either:
       * any reading in the window (at/after the fault start) is outside the range, or
       * the trace has been flat for at least FLAT_MIN_SAMPLES inside the window, counting
-        only flat that belongs to the fault — a human needs about an hour of frozen data
+        only flat that belongs to the fault. A human needs about an hour of frozen data
         on the graph before calling a sensor stuck.
     The returned index is the check itself: the fault is only seen when someone looks,
     so a fault at hour 5 is "detected" by the human at the 8 h check.
@@ -172,7 +172,7 @@ def simulate_run(channel: Channel,
                  spike_prob: float = 0.0) -> Run:
     """Simulate one run. fault_kind=None gives a clean run.
 
-    spike_prob adds random background spikes to every run; the default is 0 because spikes
+    spike_prob adds random background spikes to every run. The default is 0 because spikes
     are treated as faults to detect, not as noise.
     """
     if fault_kind is not None and fault_kind not in FAULT_KINDS:
