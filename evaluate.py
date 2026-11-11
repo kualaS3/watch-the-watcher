@@ -111,7 +111,7 @@ def _first_rising_in_window(a, starts, ends):
 def detection_stats(score_2d, meta, thr, clean_2d):
     """All per-fault-kind metrics for one group of faulted runs.
 
-    clean_2d are clean-run scores for the same channel(s); they give the 'chance' rate:
+    clean_2d are clean-run scores for the same channel(s). They give the 'chance' rate:
     how often the detector alarms inside the same windows when nothing is wrong.
     """
     starts, ends, breach, manual = meta
