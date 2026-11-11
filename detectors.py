@@ -77,7 +77,7 @@ def rolling_zscore_loop_running(x, window):
     """Plain loop, but O(n): keep running sums instead of re-summing each window."""
     xs = [float(v) for v in x]
     shift = xs[0]
-    xs = [v - shift for v in xs]          # z-score is shift-invariant; reduces cancellation error
+    xs = [v - shift for v in xs]          # z-score is shift-invariant. It reduces cancellation error
     n = len(xs)
     z = np.full(n, np.nan)
     s = sum(xs[:window])
