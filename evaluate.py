@@ -7,6 +7,8 @@ For every detector and threshold we report
   * detection delay: minutes from fault start to the first alarm (median over detected faults)
   * lead over the routine 4-hourly manual check: how many minutes earlier the detector alarmed
   * for drifts: how many minutes of warning before the reading actually left the standard range
+  * onset error: how far the estimated fault start is from the true start, in minutes
+    (median over caught faults only, since a missed fault has no onset to date)
 
 Detectors are compared at the same false-alarm budget. Comparing at different false-alarm rates
 would be meaningless: any detector can be made "fast" by letting it cry wolf.
@@ -24,6 +26,7 @@ import numpy as np
 import pandas as pd
 
 from detectors import DETECTORS, estimate_baseline
+from onset import estimate_onset
 from simulate import (CHANNELS, DRIFT_RAMP, FAULT_KINDS, SAMPLE_SECONDS, WARMUP, breach_index,
                       check_indices, manual_check_index, simulate_run)
 
@@ -134,6 +137,31 @@ def pool_meta(meta, kind, channels):
     return tuple(np.concatenate([meta[(kind, c)][i] for c in channels]) for i in range(4))
 
 
+def onset_stats(scores, meta, runs_by_key, dname, thr, channels, kind):
+    """Median onset error (minutes) over the faults this detector caught.
+
+    Returns (median signed error, median absolute error). A negative signed
+    error means the estimate is early. Only caught faults get an estimate, so
+    both are NaN when nothing was caught. The estimate for each caught fault
+    comes from onset.estimate_onset, using the same alarm that detection
+    counted.
+    """
+    sc = np.vstack([scores[dname][(kind, c)] for c in channels])
+    starts, ends, _, _ = pool_meta(meta, kind, channels)
+    runs = [r for c in channels for r in runs_by_key[(kind, c)]]
+    detected, first = _first_rising_in_window(sc > thr, starts, ends)
+    errs = []
+    for run, det, al in zip(runs, detected, first):
+        if not det:
+            continue
+        mu, sg = estimate_baseline(run.x, run.warmup)
+        est = estimate_onset(dname, kind, run.x, mu, sg, int(al), run.warmup)
+        errs.append((est - run.fault.start) * MIN_PER_SAMPLE)
+    if not errs:
+        return np.nan, np.nan
+    return float(np.median(errs)), float(np.median(np.abs(errs)))
+
+
 def evaluate_threshold(scores, meta, dname, thr, channels):
     """Pooled metrics over the given channels."""
     clean = np.vstack([scores[dname][("clean", c)] for c in channels])
@@ -224,6 +252,22 @@ def markdown_summary(cal, base, target_fa, n_runs):
                    "flagged it. Only drift runs, only where the detector fired before the breach.",
                    lambda r, k: (f"{_fmt(r['drift_lead_breach_min'])} / {_fmt(r['drift_lead_check_min'])}"
                                  if k == "drift" else ""))
+
+    def onset_cell(r, k):
+        v = r[f"{k}_onset_err_min"]
+        if v is None or (isinstance(v, float) and np.isnan(v)):
+            return "n/a"
+        # Round to whole minutes first, so a -0.2 min median prints as 0, not -0.
+        return f"{round(v)} ({round(r[f'{k}_onset_abs_err_min'])})"
+
+    lines += table("Onset: estimated fault start vs true start (min)",
+                   "Median onset error in minutes, with the median absolute error in brackets. "
+                   "A negative number means the estimate is early. Only faults the detector "
+                   "caught get an estimate, so a cell is 'n/a' where nothing was caught. "
+                   "Estimators: CUSUM uses its last return to zero, drifts and offsets use the "
+                   "fitted slope extrapolated back to the baseline, stuck sensors use the start "
+                   "of the frozen run, and spikes are dated by the alarm itself.",
+                   onset_cell)
     lines += ["", "(!) = no threshold in the grid met the false-alarm budget; the least sensitive "
               "one is shown."]
     return "\n".join(lines)
@@ -304,6 +348,16 @@ def main():
         os.path.join(args.outdir, "tradeoff.csv"), index=False)
 
     cal = calibrate(per_channel, args.target_fa)
+    onset_rows = []
+    for _, row in cal.iterrows():
+        d = {}
+        for kind in FAULT_KINDS:
+            med, mad = onset_stats(scores, meta, runs_by_key, row["detector"],
+                                   row["threshold"], [row["channel"]], kind)
+            d[f"{kind}_onset_err_min"] = med
+            d[f"{kind}_onset_abs_err_min"] = mad
+        onset_rows.append(d)
+    cal = pd.concat([cal.reset_index(drop=True), pd.DataFrame(onset_rows)], axis=1)
     cal.to_csv(os.path.join(args.outdir, "calibrated.csv"), index=False)
     base = manual_baseline(meta, runs_by_key)
     base.to_csv(os.path.join(args.outdir, "manual_baseline.csv"), index=False)
