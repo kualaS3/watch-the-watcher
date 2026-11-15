@@ -69,4 +69,27 @@ Median minutes before the reading left the range / before the 4-hourly check fla
 | weight | flatline | 10.0 | 0.33 |  | 150 / 251 |  |  |
 | weight | zscore | 4.0 | 0.24 |  | 115 / 241 |  |  |
 
+## Onset: estimated fault start vs true start (min)
+
+Median onset error in minutes, with the median absolute error in brackets. A negative number means the estimate is early. Only faults the detector caught get an estimate, so a cell is 'n/a' where nothing was caught. Estimators: CUSUM uses its last return to zero, drifts and offsets use the fitted slope extrapolated back to the baseline, stuck sensors use the start of the frozen run, and spikes are dated by the alarm itself.
+
+| channel | detector | thr | FA/hr | spike | drift | offset | stuck |
+|---|---|---|---|---|---|---|---|
+| DO | cusum | 28.0 | 0.48 | 0 (0) | 6 (6) | 0 (0) | 0 (0) |
+| DO | ewma | 6.5 | 0.44 | 0 (0) | -3 (5) | -12 (12) | 0 (0) |
+| DO | flatline | 5.0 | 0.01 | n/a | -75 (75) | -23 (23) | 0 (0) |
+| DO | zscore | 3.5 | 0.46 | 0 (0) | 1 (15) | -10 (11) | n/a |
+| pH | cusum | 60.0 | 0.49 | 0 (0) | 9 (12) | -1 (1) | 0 (0) |
+| pH | ewma | 9.0 | 0.43 | 0 (0) | 2 (9) | -10 (10) | 0 (0) |
+| pH | flatline | 10.0 | 0.01 | n/a | n/a | n/a | 0 (0) |
+| pH | zscore | 4.0 | 0.16 | 0 (0) | 22 (34) | -6 (10) | n/a |
+| temperature | cusum | 40.0 | 0.45 | 0 (0) | 7 (8) | 0 (0) | 0 (0) |
+| temperature | ewma | 7.5 | 0.40 | 0 (0) | -3 (8) | -12 (12) | 0 (0) |
+| temperature | flatline | 5.0 | 0.19 | n/a | 9 (35) | -8 (31) | 0 (0) |
+| temperature | zscore | 4.0 | 0.18 | 0 (0) | -2 (26) | -9 (11) | n/a |
+| weight | cusum | 70.0 | 0.50 | 0 (0) | 5 (8) | -1 (1) | 0 (0) |
+| weight | ewma | 12.0 | 0.45 | 0 (0) | 2 (6) | -10 (10) | 0 (0) |
+| weight | flatline | 10.0 | 0.33 | n/a | 2 (7) | -3 (41) | 0 (0) |
+| weight | zscore | 4.0 | 0.24 | 0 (0) | -3 (28) | -10 (10) | n/a |
+
 (!) = no threshold in the grid met the false-alarm budget; the least sensitive one is shown.
