@@ -58,6 +58,7 @@ Here's how I score them:
 -  The window sizes are also based on the worst case timing of the routine check. If a fault starts right after a check, nobody is looking at the process for almost 4 hours, and a drift still needs to actually leave the range before the next check can flag it. So I think the windows are really asking whether the detector managed to say something while the human was guaranteed to be blind.
 - **Chance rate**: how often the same detector alarms inside the same window on clean data. This matters a lot, and I found it out the hard way: at 0.5 false alarms per hour, a 2-hour window contains a random alarm roughly half the time, so a catch rate near the chance rate means the detector has no real skill. An earlier version of mine used long windows and made the z-score look good at drifts when it was basically guessing.
 - **Delay**: median minutes from when the fault starts to the first alarm.
+- **Onset error**: for each fault the detector caught, how far the estimated start time is from the true start, in minutes. A negative number means the estimate is early. A missed fault gets no estimate, since there is nothing to date.
 - **Warning time** (drift only): how much warning I get before the reading leaves the range, and before the routine check would have flagged it.
 
 And to keep the comparison honest, I tune every detector to the same false-alarm budget (default 0.5/hour, tuned per channel). A detector that alarms constantly will "catch" everything and be completely useless, so the budget is kind of the whole game.
@@ -66,7 +67,7 @@ And to keep the comparison honest, I tune every detector to the same false-alarm
 
 ```
 pip install -r requirements.txt
-python -m pytest -q          # 25 tests
+python -m pytest -q          # 32 tests
 python evaluate.py           # ~10 s, writes results/
 ```
 
@@ -97,6 +98,8 @@ The ~5.5 h figure is not an estimate I picked. It is the median delay the evalua
 5. **Stuck sensor: only the flatline detector works** (100% within about 2 minutes). EWMA, CUSUM and z-score are at or below their chance rates. The routine check does eventually flag a stuck sensor too, but only about 2 hours later, once a full hour of flat trace is sitting in the window it reviews. So no single detector covers every fault type, and I need one per fault type. A bit annoying, but that's the answer.
 6. **Slow-moving signals break textbook thresholds.** Weight shifts very slowly, so the CUSUM threshold I needed to stay under the false-alarm budget was very high. It then caught only 63% of drifts (chance rate 65%) and 60% of offsets (chance 55%): no real skill. Control-chart limits assume independent noise, and weight does not give me independent noise.
 
+7. **When a detector catches a fault, I can now say when it started.** Every alarm now carries an estimated start time, scored as onset error in minutes against the true start, and the full table is in `results/summary.md`. The stuck sensor is the cleanest case: the frozen run starts when the sensor froze, so the flatline detector dates it to within a minute on every channel. Spikes are dated by the alarm itself and land on the minute. For drifts, EWMA is the best at 2 to 3 minutes either way with a typical error of 5 to 9 minutes, CUSUM runs 5 to 9 minutes late, and the z-score is noisier at 15 to 34 minutes, which fits with it barely catching drifts at all. For offsets, CUSUM is near exact at 0 to 1 minute, while EWMA and the z-score run about 10 to 12 minutes early, because fitting a slope across a sudden step dates the step early. The flatline detector also catches a few drifts and offsets, but only at its chance rate, so its onset numbers there mean nothing. The point of all this is that cause-hunting now starts from a minutes-wide window instead of the whole 4-hour gap between routine checks. One honest caveat: the 20-minute fit window for the slope extrapolation was picked on the same seeded runs it is scored on, the same tuning-on-test-data habit the thresholds already have.
+
 I think a practical and real world benefit that can be derived from the results is the gain in time that the process can be in the optimal range. Because with earlier and more consistent detection, and 24/7 monitoring, faults are fixed earlier and 1-2 hours on each fault would translate into substantial gains to the bioreactor's production output. Especially when accounting for the high sensitivity of these process factors in relation to their productive efficiency. This is what gives me the motivation to explore this topic in these directions.
 
 ## Limitations
@@ -114,6 +117,7 @@ If you're reading the code: `simulate.py` and `detectors.py` are the heart of it
 |---|---|
 | `simulate.py` | Channels, noise model, fault injection, manual-check helpers |
 | `detectors.py` | Rolling z-score (4 implementations), EWMA, CUSUM, flatline |
-| `evaluate.py` | Detection, delay, false alarms, chance rate, calibration, plots |
-| `test_watch_the_watcher.py` | 25 tests |
+| `onset.py` | Onset estimators (CUSUM last return to zero, slope extrapolation, frozen-run start) |
+| `evaluate.py` | Detection, delay, false alarms, chance rate, calibration, onset error, plots |
+| `test_watch_the_watcher.py` | 32 tests |
 | `watch_the_watcher.ipynb` | Colab notebook that runs everything |
