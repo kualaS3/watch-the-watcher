@@ -4,6 +4,7 @@ import numpy as np
 from detectors import (cusum_score, estimate_baseline, ewma_score, ewma_score_loop,
                        flatline_score, rolling_zscore, rolling_zscore_loop,
                        rolling_zscore_loop_running, rolling_zscore_numpy, zscore_score)
+from onset import (cusum_onset, drift_onset, estimate_onset, flatline_onset)
 from simulate import (CHANNELS, CHECK_EVERY, FAULT_KINDS, FLAT_MIN_SAMPLES, SPIKE_GRACE,
                       WARMUP, breach_index, check_indices, manual_check_index, simulate_run)
 
@@ -202,3 +203,72 @@ def test_baseline_estimate_is_close():
     x = np.random.default_rng(8).normal(37, 0.1, 400)
     mu, sg = estimate_baseline(x, 300)
     assert abs(mu - 37) < 0.05 and abs(sg - 0.1) < 0.03
+
+
+# ---------------- onset estimation ----------------
+def test_cusum_onset_finds_the_step():
+    # A +3 sigma step at sample 400. The CUSUM excursion that alarms must have
+    # started at the step, give or take a few samples of noise.
+    rng = np.random.default_rng(9)
+    x = rng.normal(0, 1, 600)
+    x[400:] += 3.0
+    sc = cusum_score(x, 0.0, 1.0)
+    alarm = int(np.argmax(sc > 8.0))
+    assert sc[alarm] > 8.0 and alarm >= 400
+    est = cusum_onset(x, 0.0, 1.0, alarm)
+    assert abs(est - 400) <= 30 and est <= alarm
+
+
+def test_drift_onset_extrapolates_a_ramp():
+    # A linear ramp starting at sample 400. The fitted slope extrapolated back
+    # to the baseline should land near the ramp start.
+    rng = np.random.default_rng(10)
+    x = rng.normal(0, 1, 1000)
+    x[400:] += np.minimum(np.arange(600) / 240.0, 1.0) * 4.0
+    est = drift_onset(x, 0.0, 550, warmup=0)
+    assert abs(est - 400) <= 60 and est <= 550
+
+
+def test_flatline_onset_finds_the_frozen_run():
+    x = np.random.default_rng(11).normal(5, 0.1, 300)
+    x[200:] = x[199]
+    # The frozen run starts at 199, not 200: the frozen value repeats the last
+    # healthy reading, so that reading is part of the run.
+    assert flatline_onset(x, 250) == 199
+    assert flatline_onset(np.full(100, 3.0), 50) == 0
+
+
+def test_estimate_onset_dates_a_spike_by_its_alarm():
+    x = np.random.default_rng(12).normal(0, 1, 600)
+    assert estimate_onset("zscore", "spike", x, 0.0, 1.0, 500, 360) == 500
+
+
+def test_estimate_onset_dates_a_stuck_sensor_by_its_frozen_run():
+    x = np.random.default_rng(13).normal(5, 0.1, 500)
+    x[300:] = x[299]
+    # The run starts at 299: the frozen value repeats the last healthy reading.
+    assert estimate_onset("ewma", "stuck", x, 5.0, 0.1, 400, 100) == 299
+
+
+def test_estimate_onset_is_clipped_to_warmup_and_alarm():
+    # A steep ramp just before the alarm: the extrapolated crossing lands
+    # before the warm-up, so the estimate is clipped to the warm-up.
+    rng = np.random.default_rng(14)
+    x = rng.normal(0, 1, 600)
+    x[500:] += np.arange(100) * 0.2
+    est = estimate_onset("ewma", "drift", x, 0.0, 1.0, 510, 360)
+    assert 360 <= est <= 510
+
+
+def test_onset_error_is_small_on_a_real_seeded_drift():
+    # One real simulated drift run: EWMA at its calibrated pH threshold should
+    # date the onset within half an hour of the true start. The first alarm
+    # counts only from the fault start, since EWMA can false-alarm on clean data.
+    run = simulate_run(CHANNELS["pH"], seed=4, fault_kind="drift")
+    mu, sg = estimate_baseline(run.x, run.warmup)
+    sc = ewma_score(run.x, mu, sg)
+    after = np.flatnonzero(sc[run.fault.start:] > 9.0)
+    assert len(after) > 0
+    alarm = run.fault.start + int(after[0])
+    est = estimate_onset("ewma", "drift", run.x, mu, sg, alarm, run.warmup)
+    assert abs(est - run.fault.start) * 10 / 60 <= 30
